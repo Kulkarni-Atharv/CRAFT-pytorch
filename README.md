@@ -1,103 +1,153 @@
-## CRAFT: Character-Region Awareness For Text detection
-Official Pytorch implementation of CRAFT text detector | [Paper](https://arxiv.org/abs/1904.01941) | [Pretrained Model](https://drive.google.com/open?id=1Jk4eGD7crsqCCg9C9VjCLkMN3ze8kutZ) | [Supplementary](https://youtu.be/HI8MzpY8KMI)
+# CRAFT Text Detection — Raspberry Pi CM5 + Global Shutter Camera
 
-**[Youngmin Baek](mailto:youngmin.baek@navercorp.com), Bado Lee, Dongyoon Han, Sangdoo Yun, Hwalsuk Lee.**
- 
-Clova AI Research, NAVER Corp.
+Real-time text **region detection** on a Raspberry Pi Compute Module 5 using the [CRAFT](https://arxiv.org/abs/1904.01941) (Character Region Awareness For Text detection) model and the Raspberry Pi Global Shutter Camera via Picamera2.
 
-### Sample Results
+> **Detection vs Recognition** — CRAFT finds *where* text is (bounding boxes / polygons). It does not read the characters. Pipe each cropped region into a recognition model (EasyOCR, TrOCR, Tesseract) downstream if you need the actual string.
 
-### Overview
-PyTorch implementation for CRAFT text detector that effectively detect text area by exploring each character region and affinity between characters. The bounding box of texts are obtained by simply finding minimum bounding rectangles on binary map after thresholding character region and affinity scores. 
+<img width="1000" alt="CRAFT example" src="./figures/craft_example.gif">
 
-<img width="1000" alt="teaser" src="./figures/craft_example.gif">
+---
 
-## Updates
-**13 Jun, 2019**: Initial update
-**20 Jul, 2019**: Added post-processing for polygon result
-**28 Sep, 2019**: Added the trained model on IC15 and the link refiner
+## Hardware
 
+| Component | Details |
+|---|---|
+| Compute Module | Raspberry Pi CM5 |
+| Camera | Raspberry Pi Global Shutter Camera (IMX296) |
+| Interface | CSI-2 via CM5 IO Board |
 
-## Getting started
-### Install dependencies
-#### Requirements
-- PyTorch>=0.4.1
-- torchvision>=0.2.1
-- opencv-python>=3.4.2
-- check requiremtns.txt
+---
+
+## Repository Layout
+
 ```
-pip install -r requirements.txt
-```
-
-### Training
-The code for training is not included in this repository, and we cannot release the full training code for IP reason.
-
-
-### Test instruction using pretrained model
-- Download the trained models
- 
- *Model name* | *Used datasets* | *Languages* | *Purpose* | *Model Link* |
- | :--- | :--- | :--- | :--- | :--- |
-General | SynthText, IC13, IC17 | Eng + MLT | For general purpose | [Click](https://drive.google.com/open?id=1Jk4eGD7crsqCCg9C9VjCLkMN3ze8kutZ)
-IC15 | SynthText, IC15 | Eng | For IC15 only | [Click](https://drive.google.com/open?id=1i2R7UIUqmkUtF0jv_3MXTqmQ_9wuAnLf)
-LinkRefiner | CTW1500 | - | Used with the General Model | [Click](https://drive.google.com/open?id=1XSaFwBkOaFOdtk4Ane3DFyJGPRw6v5bO)
-
-* Run with pretrained model
-``` (with python 3.7)
-python test.py --trained_model=[weightfile] --test_folder=[folder path to test images]
+CRAFT-pytorch/
+├── capture_cm5.py          ← live camera capture + CRAFT detection  (main script)
+├── craft.py                ← CRAFT model architecture
+├── craft_utils.py          ← post-processing (thresholding, box extraction)
+├── imgproc.py              ← image pre/post-processing helpers
+├── refinenet.py            ← optional link refiner for curved/dense text
+├── file_utils.py           ← file I/O helpers
+├── test.py                 ← batch inference on a folder of images
+├── basenet/                ← VGG16-BN backbone
+├── weights/                ← place downloaded .pth model files here
+├── results_cm5/            ← annotated output images saved here
+├── requirements_cm5.txt    ← CM5 Python dependencies
+└── requirements.txt        ← original dependencies reference
 ```
 
-The result image and socre maps will be saved to `./result` by default.
+---
 
-### Arguments
-* `--trained_model`: pretrained model
-* `--text_threshold`: text confidence threshold
-* `--low_text`: text low-bound score
-* `--link_threshold`: link confidence threshold
-* `--cuda`: use cuda for inference (default:True)
-* `--canvas_size`: max image size for inference
-* `--mag_ratio`: image magnification ratio
-* `--poly`: enable polygon type result
-* `--show_time`: show processing time
-* `--test_folder`: folder path to input images
-* `--refine`: use link refiner for sentense-level dataset
-* `--refiner_model`: pretrained refiner model
+## Setup on CM5
 
+### 1 — System packages
 
-## Links
-- WebDemo : https://demo.ocr.clova.ai/
-- Repo of recognition : https://github.com/clovaai/deep-text-recognition-benchmark
-
-## Citation
-```
-@inproceedings{baek2019character,
-  title={Character Region Awareness for Text Detection},
-  author={Baek, Youngmin and Lee, Bado and Han, Dongyoon and Yun, Sangdoo and Lee, Hwalsuk},
-  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
-  pages={9365--9374},
-  year={2019}
-}
+```bash
+sudo apt update
+sudo apt install -y python3-picamera2 python3-venv python3-dev
 ```
 
-## License
+### 2 — Virtual environment (system site-packages required for picamera2)
+
+```bash
+cd ~/CRAFT-pytorch
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
 ```
-Copyright (c) 2019-present NAVER Corp.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+### 3 — Install PyTorch (CPU-only, ARM64)
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+```bash
+pip install --upgrade pip
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
+
+> This downloads ~250 MB and can take 10–15 min on CM5.
+
+### 4 — Install remaining dependencies
+
+```bash
+pip install opencv-python scikit-image Pillow numpy scipy
+```
+
+### 5 — Verify
+
+```bash
+python -c "import torch, cv2, picamera2, craft; print('All imports OK')"
+```
+
+---
+
+
+## Running the Live Camera Script
+
+Every new terminal session needs:
+```bash
+source .venv/bin/activate
+```
+
+### Basic run
+
+```bash
+python capture_cm5.py --model weights/craft_mlt_25k.pth
+```
+
+### With link refiner (better on curved or closely-packed text)
+
+```bash
+python capture_cm5.py --model weights/craft_mlt_25k.pth \
+  --refine --refiner_model weights/craft_refiner_CTW1500.pth
+```
+
+### Restrict to a sensor region of interest (x y w h)
+
+```bash
+python capture_cm5.py --model weights/craft_mlt_25k.pth --roi 100 50 1200 900
+```
+
+### Camera controls
+
+| Key | Action |
+|---|---|
+| `SPACE` | Capture clean frame, run detection, draw boxes, save result, exit |
+| `Q` | Quit without capturing |
+
+Annotated images and heatmaps are saved to `results_cm5/` automatically.
+
+---
+
+
+## Batch Inference on Images (no camera)
+
+```bash
+python test.py \
+  --trained_model weights/craft_mlt_25k.pth \
+  --test_folder /path/to/images \
+  --cuda False
+```
+
+Results are saved to `./result/`.
+
+---
+
+## How CRAFT Works
+
+1. **Backbone** — VGG16-BN extracts multi-scale features.
+2. **U-Net decoder** — fuses features into two score maps:
+   - **Region score** — probability that a pixel belongs to a character centre.
+   - **Affinity score** — probability that two adjacent characters belong to the same word.
+3. **Post-processing** — threshold both maps, run connected components, fit minimum-area rectangles (or tight polygons with `--poly`).
+4. **Output** — quad bounding boxes / polygons in original image coordinates.
+
+---
+
+## Tuning Tips for the Global Shutter Camera
+
+- Lower `--text_threshold` (e.g. `0.5`) if text regions are missed in low-contrast scenes.
+- Raise `--canvas_size` (e.g. `1600`) for small or dense text — at the cost of slower inference.
+- Use `--roi` to limit processing to the area of interest and reduce inference time.
+- The global shutter eliminates rolling-shutter distortion on fast-moving targets, improving box accuracy on conveyor belts, robotics, or handheld capture.
+
+---
+
+
