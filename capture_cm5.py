@@ -188,20 +188,18 @@ def start_camera():
 
     picam2 = Picamera2()
     cfg = picam2.create_preview_configuration(
-        main={"size": (1456, 1088)},
-        lores={"size": (640, 480)},
-        display="main",
+        main={"size": (1456, 1088), "format": "RGB888"},
+        display=None,   # OpenCV handles display — don't let picamera2 compete
     )
     picam2.configure(cfg)
     picam2.start()
-    time.sleep(1.0)   # let AEC/AWB settle
+    time.sleep(2.0)   # IMX296 global shutter needs ~2 s for AEC/AWB to settle
     return picam2
 
 
 def capture_frame(picam2) -> np.ndarray:
-    frame = picam2.capture_array()
-    if frame.ndim == 3 and frame.shape[2] == 4:
-        return cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+    # format="RGB888" guarantees HxWx3 RGB from picamera2
+    frame = picam2.capture_array("main")
     return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
 
@@ -236,7 +234,7 @@ def main(args: argparse.Namespace) -> None:
                 display = frame.copy()
 
             draw_hud(display)
-            cv2.imshow("CRAFT — CM5  (text detection)", display)
+            cv2.imshow("CRAFT CM5 - Live Detection", display)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
