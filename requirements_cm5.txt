@@ -1,0 +1,29 @@
+# CRAFT-pytorch on Raspberry Pi CM5
+# Install order matters — torch before torchvision
+#
+# 1. Install system packages first:
+#      sudo apt install -y python3-picamera2 libopencv-dev
+#
+# 2. Install Python packages:
+#      pip install -r requirements_cm5.txt
+
+# PyTorch for ARM64 (aarch64) — install the wheel that matches your Python version.
+# Raspberry Pi OS Bookworm ships Python 3.11.
+# Check https://torch.io or use the official nightly builds:
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#
+# The lines below cover the common stable CPU-only release:
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Image processing
+opencv-python>=4.7.0
+scikit-image>=0.21.0
+Pillow>=9.0.0
+numpy>=1.24.0
+
+# picamera2 is best installed via apt (system package), not pip:
+#   sudo apt install -y python3-picamera2
+# If you must use pip:
+# picamera2>=0.3.12
